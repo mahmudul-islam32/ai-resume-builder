@@ -1,0 +1,18 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies (will generate package-lock.json if missing)
+RUN npm install
+
+# Copy app source
+COPY . .
+
+# Expose port
+EXPOSE 3000
+
+# Start the app in development mode
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
