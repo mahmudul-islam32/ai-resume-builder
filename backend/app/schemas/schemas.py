@@ -39,7 +39,9 @@ class UserResponse(UserBase):
 # Authentication Schemas
 class Token(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str
+    user: UserResponse
 
 
 class TokenData(BaseModel):
@@ -199,9 +201,10 @@ class InterviewResponse(InterviewBase):
 # Dashboard Schemas
 class DashboardStats(BaseModel):
     total_applications: int
-    applications_by_status: dict
-    recent_applications: List[ApplicationResponse]
-    upcoming_interviews: List[InterviewResponse]
+    applied_count: int
+    interviewing_count: int
+    rejected_count: int
+    accepted_count: int
 
 
 # AI Schemas
@@ -213,9 +216,44 @@ class AITailorRequest(BaseModel):
 class AICoverLetterRequest(BaseModel):
     resume_id: int
     job_posting_id: int
-    additional_info: Optional[str] = None
+    personal_message: Optional[str] = None
 
 
 class AIResponse(BaseModel):
     content: str
     suggestions: Optional[dict] = None
+
+
+class ModelConfigRequest(BaseModel):
+    model_type: str
+    config: dict
+
+
+class ModelConfigResponse(BaseModel):
+    success: bool
+    message: str
+    model_type: str
+
+
+# ATS Scoring Schemas
+class AtsScoreRequest(BaseModel):
+    resume_id: Optional[int] = None
+    resume_text: Optional[str] = None
+    job_posting_id: Optional[int] = None
+    job_description: Optional[str] = None
+    job_title: Optional[str] = None
+
+
+class AtsScoreResponse(BaseModel):
+    overall_score: float
+    keyword_score: float
+    semantic_score: float
+    format_score: float
+    experience_score: float
+    keyword_analysis: dict
+    semantic_analysis: dict
+    format_analysis: dict
+    experience_analysis: dict
+    suggestions: list[str]
+    improvements: dict
+    confidence: float

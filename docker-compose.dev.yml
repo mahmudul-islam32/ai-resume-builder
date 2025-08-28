@@ -26,6 +26,7 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/ai_resume
       - SECRET_KEY=dev-secret-key-change-in-production
+      - DEVELOPMENT_MODE=true
     volumes:
       - ./backend:/app
       - ./uploads:/app/uploads

@@ -20,6 +20,50 @@ async def create_application(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    """
+    Create a new job application.
+    
+    **Authentication required** - Include Bearer token in Authorization header or use session cookie.
+    
+    **Example Request Body:**
+    ```json
+    {
+        "job_posting_id": 1,
+        "notes": "Applied through company website. Follow up in 1 week."
+    }
+    ```
+    
+    **Example Response:**
+    ```json
+    {
+        "id": 1,
+        "user_id": 1,
+        "job_posting_id": 1,
+        "status": "applied",
+        "notes": "Applied through company website. Follow up in 1 week.",
+        "applied_date": "2024-01-15T10:30:00Z",
+        "cover_letter": null,
+        "cover_letter_file_path": null,
+        "created_at": "2024-01-15T10:30:00Z",
+        "updated_at": "2024-01-15T10:30:00Z",
+        "job_posting": {
+            "id": 1,
+            "url": "https://example.com/job/123",
+            "title": "Senior Software Engineer",
+            "company": "Tech Corp",
+            "description": "We are looking for a senior software engineer...",
+            "requirements": "5+ years experience in Python, JavaScript...",
+            "location": "San Francisco, CA",
+            "salary_range": "$120,000 - $180,000",
+            "extracted_keywords": {
+                "skills": ["Python", "JavaScript", "React"],
+                "technologies": ["Django", "Node.js"]
+            },
+            "created_at": "2024-01-10T09:00:00Z"
+        }
+    }
+    ```
+    """
     # Check if job posting exists
     result = await db.execute(
         select(JobPosting).where(JobPosting.id == application_data.job_posting_id)
@@ -76,6 +120,78 @@ async def get_applications(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    """
+    Get all applications for the current user with pagination.
+    
+    **Authentication required** - Include Bearer token in Authorization header or use session cookie.
+    
+    **Query Parameters:**
+    - `skip`: Number of records to skip (default: 0)
+    - `limit`: Maximum number of records to return (default: 100)
+    
+    **Example Request:**
+    ```
+    GET /api/v1/applications/?skip=0&limit=10
+    ```
+    
+    **Example Response:**
+    ```json
+    [
+        {
+            "id": 1,
+            "user_id": 1,
+            "job_posting_id": 1,
+            "status": "applied",
+            "notes": "Applied through company website",
+            "applied_date": "2024-01-15T10:30:00Z",
+            "cover_letter": null,
+            "cover_letter_file_path": null,
+            "created_at": "2024-01-15T10:30:00Z",
+            "updated_at": "2024-01-15T10:30:00Z",
+            "job_posting": {
+                "id": 1,
+                "url": "https://example.com/job/123",
+                "title": "Senior Software Engineer",
+                "company": "Tech Corp",
+                "description": "We are looking for a senior software engineer...",
+                "requirements": "5+ years experience in Python, JavaScript...",
+                "location": "San Francisco, CA",
+                "salary_range": "$120,000 - $180,000",
+                "extracted_keywords": {
+                    "skills": ["Python", "JavaScript", "React"]
+                },
+                "created_at": "2024-01-10T09:00:00Z"
+            }
+        },
+        {
+            "id": 2,
+            "user_id": 1,
+            "job_posting_id": 2,
+            "status": "interviewing",
+            "notes": "First interview scheduled for next week",
+            "applied_date": "2024-01-10T14:20:00Z",
+            "cover_letter": "Dear Hiring Manager...",
+            "cover_letter_file_path": "/uploads/cover_letter_2.pdf",
+            "created_at": "2024-01-10T14:20:00Z",
+            "updated_at": "2024-01-12T16:45:00Z",
+            "job_posting": {
+                "id": 2,
+                "url": "https://example.com/job/456",
+                "title": "Full Stack Developer",
+                "company": "Startup Inc",
+                "description": "Join our growing team...",
+                "requirements": "3+ years experience in web development...",
+                "location": "Remote",
+                "salary_range": "$90,000 - $130,000",
+                "extracted_keywords": {
+                    "skills": ["React", "Node.js", "MongoDB"]
+                },
+                "created_at": "2024-01-08T11:30:00Z"
+            }
+        }
+    ]
+    ```
+    """
     result = await db.execute(
         select(Application)
         .options(selectinload(Application.job_posting))
@@ -92,6 +208,51 @@ async def get_application(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    """
+    Get a specific application by ID.
+    
+    **Authentication required** - Include Bearer token in Authorization header or use session cookie.
+    
+    **Path Parameters:**
+    - `application_id`: ID of the application to retrieve
+    
+    **Example Request:**
+    ```
+    GET /api/v1/applications/1
+    ```
+    
+    **Example Response:**
+    ```json
+    {
+        "id": 1,
+        "user_id": 1,
+        "job_posting_id": 1,
+        "status": "applied",
+        "notes": "Applied through company website. Follow up in 1 week.",
+        "applied_date": "2024-01-15T10:30:00Z",
+        "cover_letter": "Dear Hiring Manager,\n\nI am writing to express my interest...",
+        "cover_letter_file_path": "/uploads/cover_letter_1.pdf",
+        "created_at": "2024-01-15T10:30:00Z",
+        "updated_at": "2024-01-15T10:30:00Z",
+        "job_posting": {
+            "id": 1,
+            "url": "https://example.com/job/123",
+            "title": "Senior Software Engineer",
+            "company": "Tech Corp",
+            "description": "We are looking for a senior software engineer with expertise in Python and JavaScript...",
+            "requirements": "5+ years experience in Python, JavaScript, React. Experience with Django and Node.js preferred.",
+            "location": "San Francisco, CA",
+            "salary_range": "$120,000 - $180,000",
+            "extracted_keywords": {
+                "skills": ["Python", "JavaScript", "React", "Django", "Node.js"],
+                "experience_level": "senior",
+                "location": "San Francisco"
+            },
+            "created_at": "2024-01-10T09:00:00Z"
+        }
+    }
+    ```
+    """
     result = await db.execute(
         select(Application)
         .options(selectinload(Application.job_posting))
@@ -118,6 +279,59 @@ async def update_application(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    """
+    Update an application's status and notes.
+    
+    **Authentication required** - Include Bearer token in Authorization header or use session cookie.
+    
+    **Path Parameters:**
+    - `application_id`: ID of the application to update
+    
+    **Example Request Body:**
+    ```json
+    {
+        "status": "interviewing",
+        "notes": "First interview completed. Second interview scheduled for next week."
+    }
+    ```
+    
+    **Available Status Values:**
+    - `applied`: Initial application submitted
+    - `interviewing`: In interview process
+    - `offer`: Job offer received
+    - `rejected`: Application rejected
+    - `withdrawn`: Application withdrawn
+    
+    **Example Response:**
+    ```json
+    {
+        "id": 1,
+        "user_id": 1,
+        "job_posting_id": 1,
+        "status": "interviewing",
+        "notes": "First interview completed. Second interview scheduled for next week.",
+        "applied_date": "2024-01-15T10:30:00Z",
+        "cover_letter": "Dear Hiring Manager...",
+        "cover_letter_file_path": "/uploads/cover_letter_1.pdf",
+        "created_at": "2024-01-15T10:30:00Z",
+        "updated_at": "2024-01-20T16:30:00Z",
+        "job_posting": {
+            "id": 1,
+            "url": "https://example.com/job/123",
+            "title": "Senior Software Engineer",
+            "company": "Tech Corp",
+            "description": "We are looking for a senior software engineer...",
+            "requirements": "5+ years experience in Python, JavaScript...",
+            "location": "San Francisco, CA",
+            "salary_range": "$120,000 - $180,000",
+            "extracted_keywords": {
+                "skills": ["Python", "JavaScript", "React"]
+            },
+            "created_at": "2024-01-10T09:00:00Z"
+        }
+    }
+    ```
+    """
     result = await db.execute(
         select(Application).where(
             Application.id == application_id,
@@ -132,7 +346,8 @@ async def update_application(
             detail="Application not found"
         )
     
-    for field, value in application_update.model_dump(exclude_unset=True).items():
+    # Update fields
+    for field, value in application_update.dict(exclude_unset=True).items():
         setattr(application, field, value)
     
     await db.commit()
@@ -155,6 +370,26 @@ async def delete_application(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    """
+    Delete an application permanently.
+    
+    **Authentication required** - Include Bearer token in Authorization header or use session cookie.
+    
+    **Path Parameters:**
+    - `application_id`: ID of the application to delete
+    
+    **Example Request:**
+    ```
+    DELETE /api/v1/applications/1
+    ```
+    
+    **Example Response:**
+    ```json
+    {
+        "message": "Application deleted successfully"
+    }
+    ```
+    """
     result = await db.execute(
         select(Application).where(
             Application.id == application_id,
@@ -175,36 +410,75 @@ async def delete_application(
     return {"message": "Application deleted successfully"}
 
 
-@router.get("/dashboard/stats", response_model=DashboardStats)
+@router.get("/stats/dashboard", response_model=DashboardStats)
 async def get_dashboard_stats(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    # Get all applications for the user
+    """
+    Get dashboard statistics for the current user's applications.
+    
+    **Authentication required** - Include Bearer token in Authorization header or use session cookie.
+    
+    **Example Request:**
+    ```
+    GET /api/v1/applications/stats/dashboard
+    ```
+    
+    **Example Response:**
+    ```json
+    {
+        "total_applications": 15,
+        "applied_count": 8,
+        "interviewing_count": 4,
+        "rejected_count": 2,
+        "accepted_count": 1
+    }
+    ```
+    """
+    # Get total applications
     result = await db.execute(
-        select(Application)
-        .options(selectinload(Application.job_posting))
-        .where(Application.user_id == current_user.id)
+        select(Application).where(Application.user_id == current_user.id)
     )
-    applications = result.scalars().all()
+    total_applications = len(result.scalars().all())
     
-    # Calculate stats
-    total_applications = len(applications)
-    applications_by_status = {}
+    # Get applications by status
+    result = await db.execute(
+        select(Application).where(
+            Application.user_id == current_user.id,
+            Application.status == "applied"
+        )
+    )
+    applied_count = len(result.scalars().all())
     
-    for app in applications:
-        status = app.status.value
-        applications_by_status[status] = applications_by_status.get(status, 0) + 1
+    result = await db.execute(
+        select(Application).where(
+            Application.user_id == current_user.id,
+            Application.status == "interviewing"
+        )
+    )
+    interviewing_count = len(result.scalars().all())
     
-    # Get recent applications (last 10)
-    recent_applications = sorted(applications, key=lambda x: x.created_at, reverse=True)[:10]
+    result = await db.execute(
+        select(Application).where(
+            Application.user_id == current_user.id,
+            Application.status == "rejected"
+        )
+    )
+    rejected_count = len(result.scalars().all())
     
-    # Get upcoming interviews (placeholder - would need to join with interviews table)
-    upcoming_interviews = []
+    result = await db.execute(
+        select(Application).where(
+            Application.user_id == current_user.id,
+            Application.status == "accepted"
+        )
+    )
+    accepted_count = len(result.scalars().all())
     
     return DashboardStats(
         total_applications=total_applications,
-        applications_by_status=applications_by_status,
-        recent_applications=recent_applications,
-        upcoming_interviews=upcoming_interviews
+        applied_count=applied_count,
+        interviewing_count=interviewing_count,
+        rejected_count=rejected_count,
+        accepted_count=accepted_count
     )

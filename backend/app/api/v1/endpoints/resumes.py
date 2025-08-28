@@ -23,6 +23,44 @@ async def upload_resume(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    """
+    Upload and parse a resume file (PDF or DOCX).
+    
+    **Authentication required** - Include Bearer token in Authorization header or use session cookie.
+    
+    **Form Data:**
+    - `file`: Resume file (PDF or DOCX, max 10MB)
+    - `title`: Optional custom title for the resume
+    
+    **Example cURL Request:**
+    ```bash
+    curl -X POST "http://localhost:8000/api/v1/resumes/upload" \
+         -H "Authorization: Bearer YOUR_TOKEN" \
+         -F "file=@resume.pdf" \
+         -F "title=My Professional Resume"
+    ```
+    
+    **Example Response:**
+    ```json
+    {
+        "id": 1,
+        "user_id": 1,
+        "title": "My Professional Resume",
+        "original_filename": "resume.pdf",
+        "file_type": "pdf",
+        "parsed_content": "John Doe\nSoftware Engineer\n...",
+        "extracted_data": {
+            "name": "John Doe",
+            "email": "john.doe@example.com",
+            "phone": "+1-555-0123",
+            "skills": ["Python", "JavaScript", "React"],
+            "experience": [...]
+        },
+        "is_active": true,
+        "created_at": "2024-01-15T10:30:00Z"
+    }
+    ```
+    """
     # Validate file type
     if not file.filename.lower().endswith(('.pdf', '.docx')):
         raise HTTPException(
@@ -85,6 +123,47 @@ async def get_resumes(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    """
+    Get all resumes for the current user.
+    
+    **Authentication required** - Include Bearer token in Authorization header or use session cookie.
+    
+    **Example Response:**
+    ```json
+    [
+        {
+            "id": 1,
+            "user_id": 1,
+            "title": "My Professional Resume",
+            "original_filename": "resume.pdf",
+            "file_type": "pdf",
+            "parsed_content": "John Doe\nSoftware Engineer\n...",
+            "extracted_data": {
+                "name": "John Doe",
+                "email": "john.doe@example.com",
+                "skills": ["Python", "JavaScript"]
+            },
+            "is_active": true,
+            "created_at": "2024-01-15T10:30:00Z"
+        },
+        {
+            "id": 2,
+            "user_id": 1,
+            "title": "Updated Resume 2024",
+            "original_filename": "resume_v2.pdf",
+            "file_type": "pdf",
+            "parsed_content": "John Doe\nSenior Software Engineer\n...",
+            "extracted_data": {
+                "name": "John Doe",
+                "email": "john.doe@example.com",
+                "skills": ["Python", "JavaScript", "React", "Node.js"]
+            },
+            "is_active": true,
+            "created_at": "2024-01-20T14:15:00Z"
+        }
+    ]
+    ```
+    """
     result = await db.execute(
         select(Resume).where(Resume.user_id == current_user.id, Resume.is_active == True)
     )
@@ -97,6 +176,55 @@ async def get_resume(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    """
+    Get a specific resume by ID.
+    
+    **Authentication required** - Include Bearer token in Authorization header or use session cookie.
+    
+    **Path Parameters:**
+    - `resume_id`: ID of the resume to retrieve
+    
+    **Example Request:**
+    ```
+    GET /api/v1/resumes/1
+    ```
+    
+    **Example Response:**
+    ```json
+    {
+        "id": 1,
+        "user_id": 1,
+        "title": "My Professional Resume",
+        "original_filename": "resume.pdf",
+        "file_type": "pdf",
+        "parsed_content": "John Doe\nSoftware Engineer\n...",
+        "extracted_data": {
+            "name": "John Doe",
+            "email": "john.doe@example.com",
+            "phone": "+1-555-0123",
+            "skills": ["Python", "JavaScript", "React"],
+            "experience": [
+                {
+                    "title": "Software Engineer",
+                    "company": "Tech Corp",
+                    "duration": "2020-2023",
+                    "description": "Developed web applications..."
+                }
+            ],
+            "education": [
+                {
+                    "degree": "Bachelor of Science",
+                    "field": "Computer Science",
+                    "institution": "University of Technology",
+                    "year": "2020"
+                }
+            ]
+        },
+        "is_active": true,
+        "created_at": "2024-01-15T10:30:00Z"
+    }
+    ```
+    """
     result = await db.execute(
         select(Resume).where(
             Resume.id == resume_id,
@@ -122,6 +250,40 @@ async def update_resume(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    """
+    Update a resume's metadata (title only).
+    
+    **Authentication required** - Include Bearer token in Authorization header or use session cookie.
+    
+    **Path Parameters:**
+    - `resume_id`: ID of the resume to update
+    
+    **Example Request Body:**
+    ```json
+    {
+        "title": "Updated Resume Title"
+    }
+    ```
+    
+    **Example Response:**
+    ```json
+    {
+        "id": 1,
+        "user_id": 1,
+        "title": "Updated Resume Title",
+        "original_filename": "resume.pdf",
+        "file_type": "pdf",
+        "parsed_content": "John Doe\nSoftware Engineer\n...",
+        "extracted_data": {
+            "name": "John Doe",
+            "email": "john.doe@example.com",
+            "skills": ["Python", "JavaScript"]
+        },
+        "is_active": true,
+        "created_at": "2024-01-15T10:30:00Z"
+    }
+    ```
+    """
     result = await db.execute(
         select(Resume).where(
             Resume.id == resume_id,
@@ -137,11 +299,13 @@ async def update_resume(
             detail="Resume not found"
         )
     
-    for field, value in resume_update.model_dump(exclude_unset=True).items():
+    # Update fields
+    for field, value in resume_update.dict(exclude_unset=True).items():
         setattr(resume, field, value)
     
     await db.commit()
     await db.refresh(resume)
+    
     return resume
 
 
@@ -151,6 +315,26 @@ async def delete_resume(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    """
+    Soft delete a resume (marks as inactive but doesn't remove from database).
+    
+    **Authentication required** - Include Bearer token in Authorization header or use session cookie.
+    
+    **Path Parameters:**
+    - `resume_id`: ID of the resume to delete
+    
+    **Example Request:**
+    ```
+    DELETE /api/v1/resumes/1
+    ```
+    
+    **Example Response:**
+    ```json
+    {
+        "message": "Resume deleted successfully"
+    }
+    ```
+    """
     result = await db.execute(
         select(Resume).where(
             Resume.id == resume_id,

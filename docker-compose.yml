@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
       POSTGRES_DB: ${POSTGRES_DB:-ai_resume}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -24,6 +24,17 @@ services:
     networks:
       - ai-resume-network
 
+  # Ollama for local LLM models
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - ai-resume-network
+    restart: unless-stopped
+
   # Backend API
   backend:
     build:
@@ -37,12 +48,15 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - DEVELOPMENT_MODE=true
+      # Ollama configuration removed temporarily to fix YAML syntax
     volumes:
       - ./backend:/app
       - ./uploads:/app/uploads
     depends_on:
       - db
       - redis
+      - ollama
     networks:
       - ai-resume-network
     restart: unless-stopped
@@ -84,6 +98,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  ollama_data:
 
 networks:
   ai-resume-network:
