@@ -12,12 +12,13 @@ RUN apt-get update && apt-get install -y \
 RUN pip install --upgrade pip
 
 # Copy requirements first for better caching
-COPY requirements-docker.txt requirements.txt
+COPY requirements-simple.txt requirements.txt
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install spaCy models (medium model for better NLP capabilities)
+# Install spaCy and models for enhanced NLP
+RUN pip install spacy==3.7.2
 RUN python -m spacy download en_core_web_sm
 RUN python -m spacy download en_core_web_md
 

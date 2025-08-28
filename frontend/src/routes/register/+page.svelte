@@ -30,6 +30,7 @@
     error.set(null);
 
     try {
+      console.log('🔍 Attempting registration...');
       await api.post('/auth/register', {
         email,
         password,
@@ -37,21 +38,20 @@
         last_name: lastName
       });
 
+      console.log('✅ Registration successful, auto-login...');
       // Auto-login after registration
       const loginResponse = await api.post('/auth/login', {
         email,
         password
       });
 
-      const { access_token } = loginResponse.data;
-      localStorage.setItem('token', access_token);
-
-      // Get user info
-      const userResponse = await api.get('/auth/me');
-      user.set(userResponse.data);
+      console.log('✅ Auto-login successful:', loginResponse.data);
+      // Set user data from the response
+      user.set(loginResponse.data.user);
 
       goto('/dashboard');
     } catch (err: any) {
+      console.error('❌ Registration failed:', err);
       const axiosError = err as AxiosError<{ detail: string }>;
       error.set(axiosError.response?.data?.detail || 'Registration failed');
     } finally {

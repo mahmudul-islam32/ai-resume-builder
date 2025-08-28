@@ -17,20 +17,19 @@
     error.set(null);
 
     try {
+      console.log('🔍 Attempting login...');
       const response = await api.post('/auth/login', {
         email,
         password
       });
 
-      const { access_token } = response.data;
-      localStorage.setItem('token', access_token);
-
-      // Get user info
-      const userResponse = await api.get('/auth/me');
-      user.set(userResponse.data);
+      console.log('✅ Login successful:', response.data);
+      // Set user data from the response
+      user.set(response.data.user);
 
       goto('/dashboard');
     } catch (err: any) {
+      console.error('❌ Login failed:', err);
       const axiosError = err as AxiosError<{ detail: string }>;
       error.set(axiosError.response?.data?.detail || 'Login failed');
     } finally {

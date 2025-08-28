@@ -94,7 +94,7 @@ def extract_company_name(soup: BeautifulSoup) -> str:
 
 
 def extract_job_description(soup: BeautifulSoup) -> str:
-    """Extract job description from HTML."""
+    """Extract job description from HTML with improved formatting preservation."""
     
     description_selectors = [
         '#jobDescriptionText',  # Indeed
@@ -102,29 +102,36 @@ def extract_job_description(soup: BeautifulSoup) -> str:
         '.job-description',
         '.description',
         '.posting-description',
-        '.job-details'
+        '.job-details',
+        '.job-description-container',
+        '.job-posting-description'
     ]
     
     for selector in description_selectors:
         element = soup.select_one(selector)
         if element:
-            return clean_text(element.get_text(separator='\n', strip=True))
+            return clean_and_format_text(element)
     
-    # Fallback: get all paragraph text
-    paragraphs = soup.find_all('p')
+    # Fallback: get all paragraph text with better formatting
+    paragraphs = soup.find_all(['p', 'div', 'section'])
     if paragraphs:
-        description = '\n'.join([p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True)])
-        if len(description) > 100:  # Only return if substantial content
-            return clean_text(description)
+        description_parts = []
+        for p in paragraphs:
+            text = p.get_text(strip=True)
+            if text and len(text) > 10:  # Only include substantial content
+                description_parts.append(text)
+        
+        if description_parts:
+            return clean_and_format_text('\n\n'.join(description_parts))
     
     return "No description available"
 
 
 def extract_requirements(soup: BeautifulSoup) -> Optional[str]:
-    """Extract job requirements from HTML."""
+    """Extract job requirements from HTML with improved formatting."""
     
     # Look for sections that might contain requirements
-    requirement_keywords = ['requirements', 'qualifications', 'skills', 'experience']
+    requirement_keywords = ['requirements', 'qualifications', 'skills', 'experience', 'what you bring', 'what we expect', 'was du mitbringst']
     
     for keyword in requirement_keywords:
         # Find headers containing the keyword
@@ -138,7 +145,10 @@ def extract_requirements(soup: BeautifulSoup) -> Optional[str]:
             while next_element and next_element.name not in ['h1', 'h2', 'h3']:
                 if next_element.name in ['ul', 'ol']:
                     items = next_element.find_all('li')
-                    content.extend([item.get_text(strip=True) for item in items])
+                    for item in items:
+                        text = item.get_text(strip=True)
+                        if text:
+                            content.append(f"• {text}")
                 elif next_element.name == 'p':
                     text = next_element.get_text(strip=True)
                     if text:
@@ -147,7 +157,7 @@ def extract_requirements(soup: BeautifulSoup) -> Optional[str]:
                 next_element = next_element.find_next_sibling()
             
             if content:
-                return clean_text('\n'.join(content))
+                return clean_and_format_text('\n'.join(content))
     
     return None
 
@@ -238,3 +248,99 @@ def clean_text(text: str) -> str:
     text = re.sub(r'[^\w\s\-.,;:()$%/]', '', text)
     
     return text.strip()
+
+
+def clean_and_format_text(element) -> str:
+    """
+    Clean and format text while preserving structure and readability.
+    Enhanced for German job postings.
+    
+    Args:
+        element: BeautifulSoup element or string
+        
+    Returns:
+        Formatted text string
+    """
+    if isinstance(element, str):
+        text = element
+    else:
+        # Get text with proper separators
+        text = element.get_text(separator='\n', strip=True)
+    
+    if not text:
+        return ""
+    
+    # Split into lines and clean each line
+    lines = text.split('\n')
+    cleaned_lines = []
+    
+    for line in lines:
+        # Clean the line
+        line = line.strip()
+        
+        # Skip empty lines
+        if not line:
+            continue
+            
+        # Remove excessive whitespace within the line
+        line = re.sub(r'\s+', ' ', line)
+        
+        # Clean special characters but preserve important ones
+        line = re.sub(r'[^\w\s\-.,;:()$%/\n]', '', line)
+        
+        cleaned_lines.append(line)
+    
+    # Join lines with proper spacing
+    formatted_text = '\n'.join(cleaned_lines)
+    
+    # Add extra spacing around section headers (lines that end with :)
+    formatted_text = re.sub(r'([^:]+:)\n', r'\1\n\n', formatted_text)
+    
+    # Add spacing around bullet points
+    formatted_text = re.sub(r'\n(•|\*|\-)\s*', r'\n\n\1 ', formatted_text)
+    
+    # Handle German job posting specific formatting
+    # Add spacing after common German section headers
+    german_headers = [
+        r'Was Du Bei Uns Bewegst',
+        r'Was Du Mitbringst', 
+        r'Was Wir Dir Bieten',
+        r'Ansprechpartner',
+        r'Über uns',
+        r'Ziel der Stelle',
+        r'Gehaltsspanne',
+        r'Vollzeit',
+        r'hybrid',
+        r'mit Berufserfahrung'
+    ]
+    
+    for header in german_headers:
+        formatted_text = re.sub(f'({header})', r'\1\n', formatted_text, flags=re.IGNORECASE)
+    
+    # Add bullet points for lines that start with "Du" (common in German job postings)
+    formatted_text = re.sub(r'\n(Du [^.]*\.)', r'\n• \1', formatted_text)
+    
+    # Add bullet points for lines that start with common German patterns
+    german_bullet_patterns = [
+        r'Abgeschlossenes Studium',
+        r'Fundierte Erfahrung',
+        r'Sicherer Umgang',
+        r'Sehr gute Deutsch',
+        r'Teamgeist',
+        r'Erfahrungen mit',
+        r'Faires und transparentes Gehalt',
+        r'Hybrides Arbeiten',
+        r'Gleitzeit',
+        r'30 Tage Urlaub',
+        r'Mobilitäts- und Gesundheitszuschüsse',
+        r'Modernes Büro',
+        r'Community-Events'
+    ]
+    
+    for pattern in german_bullet_patterns:
+        formatted_text = re.sub(f'\\n({pattern})', r'\n• \1', formatted_text, flags=re.IGNORECASE)
+    
+    # Clean up multiple consecutive newlines
+    formatted_text = re.sub(r'\n{3,}', '\n\n', formatted_text)
+    
+    return formatted_text.strip()
